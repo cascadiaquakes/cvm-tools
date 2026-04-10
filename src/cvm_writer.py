@@ -219,7 +219,7 @@ def main():
                 decimation_factors.append(y_decimation_factor)
 
                 z_decimation_factor = 1
-                if "z" in metadata:
+                if metadata.get("z") is not None:
                     if "decimation_factor" in metadata["z"]:
                         metadata["z"]["decimation_factor"] = int(
                             metadata["z"]["decimation_factor"]

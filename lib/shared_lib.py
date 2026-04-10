@@ -182,38 +182,53 @@ def read_model_metadata(model_file, params=dict()):
     Keyword arguments:
     model_file -- [required] the model metadata file
     """
-    with open(model_file, "r") as fp:
-        data = fp.read()
-        lines = data.split("\n")
+    data = None
+    encodings = ("utf-8-sig", "utf-8", "cp1252", "latin-1")
+    last_error = None
+    for encoding in encodings:
+        try:
+            with open(model_file, "r", encoding=encoding) as fp:
+                data = fp.read()
+            break
+        except UnicodeDecodeError as err:
+            last_error = err
 
-        group_key = None
-        subgroup_key = None
-        for line in lines:
-            line_type, key, value = get_key_value(line)
-            if line_type is None:
-                continue
-            elif line_type == ">":
-                group_key = key
-                subgroup_key = None
-                params[group_key] = dict()
-            if line_type == ">>" and group_key is None:
-                logging.error(f"[ERR] found an orphaned subgroup: {line}")
-                sys.exit(2)
-            elif line_type == ">>":
-                subgroup_key = key
-                params[group_key][subgroup_key] = dict()
-            elif line_type == ">>>" and group_key is None and subgroup_key is None:
-                print(f"[ERR] item: {line} not in a group.subgroup")
-                sys.exit(2)
-            elif line_type == ">>>" and subgroup_key is None:
-                params[group_key][key] = value
-            elif line_type == ">>>":
-                params[group_key][subgroup_key][key] = value
-            elif line.startswith("-"):
-                group_key = None
-                subgroup_key = None
+    if data is None:
+        logging.error(
+            f"[ERR] Unable to decode metadata file '{model_file}' with supported encodings {encodings}: {last_error}"
+        )
+        sys.exit(2)
 
-                params[key] = value
+    lines = data.split("\n")
+
+    group_key = None
+    subgroup_key = None
+    for line in lines:
+        line_type, key, value = get_key_value(line)
+        if line_type is None:
+            continue
+        elif line_type == ">":
+            group_key = key
+            subgroup_key = None
+            params[group_key] = dict()
+        if line_type == ">>" and group_key is None:
+            logging.error(f"[ERR] found an orphaned subgroup: {line}")
+            sys.exit(2)
+        elif line_type == ">>":
+            subgroup_key = key
+            params[group_key][subgroup_key] = dict()
+        elif line_type == ">>>" and group_key is None and subgroup_key is None:
+            print(f"[ERR] item: {line} not in a group.subgroup")
+            sys.exit(2)
+        elif line_type == ">>>" and subgroup_key is None:
+            params[group_key][key] = value
+        elif line_type == ">>>":
+            params[group_key][subgroup_key][key] = value
+        elif line.startswith("-"):
+            group_key = None
+            subgroup_key = None
+
+            params[key] = value
 
     return params
 
